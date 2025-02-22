@@ -29,11 +29,8 @@ int OSD::renderGlyph(const char* characters) {
             SFT_LMetrics lmetrics;
             SFT_GMetrics gmetrics;
             SFT_Glyph glyph;
-            SFT_Image imageBuffer = {
-                .width = 0,
-                .height = 0,
-                .pixels = nullptr
-            };  // Properly initialize all fields
+            SFT_Image imageBuffer;          // Declare without initialization
+            memset(&imageBuffer, 0, sizeof(SFT_Image));  // Zero initialize all fields
 
             if (sft_lmetrics(sft, &lmetrics) == 0 && 
                 sft_lookup(sft, *characters, &glyph) == 0 &&
@@ -55,7 +52,6 @@ int OSD::renderGlyph(const char* characters) {
                         g.glyph = glyph;
 
                         g.bitmap.resize(g.width * g.height);
-                        // Cast the void pointer to uint8_t* before indexing
                         uint8_t* pixels = static_cast<uint8_t*>(imageBuffer.pixels);
                         for (int i = 0; i < g.width * g.height; i++) {
                             g.bitmap[i] = pixels[i];
