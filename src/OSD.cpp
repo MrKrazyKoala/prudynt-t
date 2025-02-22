@@ -808,19 +808,15 @@ void OSD::updateDisplayEverySecond()
     }
     else
     {
-        // The flag ensures that only 1 OSD object is updated
-        // on calling OSD::updateDisplayEverySecond()
-        // this should relieve the system
         if (flag != 0)
         {
-            
             // Format and update system time
             if ((flag & 1) && osd.time_enabled)
             {
                 strftime(timeFormatted, sizeof(timeFormatted), osd.time_format, ltime);
 
                 set_text(&osdTime, nullptr, timeFormatted,
-                         osd.pos_time_x, osd.pos_time_y, osd.time_rotation);
+                         osd.pos_time_x, osd.pos_time_y, osd.time_rotation, osd.time_color);
 
                 flag ^= 1;
                 return;
@@ -856,7 +852,7 @@ void OSD::updateDisplayEverySecond()
                 }
 
                 set_text(&osdUser, nullptr, user_text.c_str(),
-                         osd.pos_user_text_x, osd.pos_user_text_y, osd.user_text_rotation);
+                         osd.pos_user_text_x, osd.pos_user_text_y, osd.user_text_rotation, osd.user_text_color);
 
                 user_text.clear();
 
@@ -871,12 +867,11 @@ void OSD::updateDisplayEverySecond()
                 unsigned long days = currentUptime / 86400;
                 unsigned long hours = (currentUptime % 86400) / 3600;
                 unsigned long minutes = (currentUptime % 3600) / 60;
-                //unsigned long seconds = currentUptime % 60;
 
                 snprintf(uptimeFormatted, sizeof(uptimeFormatted), osd.uptime_format, days, hours, minutes);
 
                 set_text(&osdUptm, nullptr, uptimeFormatted,
-                         osd.pos_uptime_x, osd.pos_uptime_y, osd.uptime_rotation);
+                         osd.pos_uptime_x, osd.pos_uptime_y, osd.uptime_rotation, osd.uptime_color);
 
                 flag ^= 4;
                 return;
