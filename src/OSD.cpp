@@ -247,9 +247,13 @@ int OSD::libschrift_init()
     return 0;
 }
 
-void OSD::set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle, unsigned int textColor)  // Added textColor parameter
+void OSD::set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle, unsigned int textColor)
 {
-    // Set text color based on provided color
+    // Use the default font_color if specific color is not set (0)
+    if (textColor == 0) {
+        textColor = osd.font_color;
+    }
+
     BGRA_TEXT[2] = (textColor >> 16) & 0xFF;
     BGRA_TEXT[1] = (textColor >> 8) & 0xFF;
     BGRA_TEXT[0] = (textColor >> 0) & 0xFF;
@@ -570,7 +574,7 @@ void OSD::init()
         rgnAttr.type = OSD_REG_PIC;
         rgnAttr.fmt = PIX_FMT_BGRA;
         set_text(&osdTime, &rgnAttr, osd.time_format,
-            osd.pos_time_x, osd.pos_time_y, osd.time_rotation, osd.font_color);
+             osd.pos_time_x, osd.pos_time_y, osd.time_rotation, osd.time_color);
         IMP_OSD_SetRgnAttr(osdTime.imp_rgn, &rgnAttr);
 
         IMPOSDGrpRgnAttr grpRgnAttr;
@@ -609,7 +613,7 @@ void OSD::init()
         rgnAttr.type = OSD_REG_PIC;
         rgnAttr.fmt = PIX_FMT_BGRA;
         set_text(&osdUser, &rgnAttr, osd.user_text_format,
-             osd.pos_user_text_x, osd.pos_user_text_y, osd.user_text_rotation, osd.font_color);
+             osd.pos_user_text_x, osd.pos_user_text_y, osd.user_text_rotation, osd.user_text_color);
         IMP_OSD_SetRgnAttr(osdUser.imp_rgn, &rgnAttr);
 
         IMPOSDGrpRgnAttr grpRgnAttr;
@@ -645,7 +649,7 @@ void OSD::init()
         rgnAttr.type = OSD_REG_PIC;
         rgnAttr.fmt = PIX_FMT_BGRA;
         set_text(&osdUptm, &rgnAttr, osd.uptime_format,
-             osd.pos_uptime_x, osd.pos_uptime_y, osd.uptime_rotation, osd.font_color);
+             osd.pos_uptime_x, osd.pos_uptime_y, osd.uptime_rotation, osd.uptime_color);
         IMP_OSD_SetRgnAttr(osdUptm.imp_rgn, &rgnAttr);
 
         IMPOSDGrpRgnAttr grpRgnAttr;
@@ -814,10 +818,8 @@ void OSD::updateDisplayEverySecond()
             if ((flag & 1) && osd.time_enabled)
             {
                 strftime(timeFormatted, sizeof(timeFormatted), osd.time_format, ltime);
-
                 set_text(&osdTime, nullptr, timeFormatted,
                          osd.pos_time_x, osd.pos_time_y, osd.time_rotation, osd.time_color);
-
                 flag ^= 1;
                 return;
             }
@@ -852,7 +854,8 @@ void OSD::updateDisplayEverySecond()
                 }
 
                 set_text(&osdUser, nullptr, user_text.c_str(),
-                         osd.pos_user_text_x, osd.pos_user_text_y, osd.user_text_rotation, osd.user_text_color);
+                     osd.pos_user_text_x, osd.pos_user_text_y, osd.user_text_rotation, osd.user_text_color);
+
 
                 user_text.clear();
 
@@ -871,7 +874,7 @@ void OSD::updateDisplayEverySecond()
                 snprintf(uptimeFormatted, sizeof(uptimeFormatted), osd.uptime_format, days, hours, minutes);
 
                 set_text(&osdUptm, nullptr, uptimeFormatted,
-                         osd.pos_uptime_x, osd.pos_uptime_y, osd.uptime_rotation, osd.uptime_color);
+                     osd.pos_uptime_x, osd.pos_uptime_y, osd.uptime_rotation, osd.uptime_color);
 
                 flag ^= 4;
                 return;
