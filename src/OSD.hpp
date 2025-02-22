@@ -80,7 +80,8 @@ private:
     OSDItem osdUptm{};
     OSDItem osdLogo{};
 
-    void set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle);
+    //void set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle);
+    void set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle, unsigned int textColor);
     std::string getConfigPath(const char *itemName);
 
     IMPEncoderCHNAttr channelAttributes;
