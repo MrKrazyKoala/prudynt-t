@@ -23,38 +23,42 @@
 
 #include "schrift.h"
 
-int OSD::renderGlyph(const char* characters)
-{
+int OSD::renderGlyph(const char* characters) {
     while (*characters) {
-        SFT_LMetrics lmetrics;
-        SFT_GMetrics gmetrics;
-        SFT_Glyph glyph;
-        SFT_Image imageBuffer;
+        if (glyphs.find(*characters) == glyphs.end()) {  // Only render if not already cached
+            SFT_LMetrics lmetrics;
+            SFT_GMetrics gmetrics;
+            SFT_Glyph glyph;
+            SFT_Image imageBuffer = {0};  // Initialize to zero
 
-        if (sft_lmetrics(sft, &lmetrics) == 0 && sft_lookup(sft, *characters, &glyph) == 0) {
-            if (sft_gmetrics(sft, glyph, &gmetrics) == 0) {
+            if (sft_lmetrics(sft, &lmetrics) == 0 && 
+                sft_lookup(sft, *characters, &glyph) == 0 &&
+                sft_gmetrics(sft, glyph, &gmetrics) == 0) {
+                
                 imageBuffer.width = gmetrics.minWidth;
                 imageBuffer.height = gmetrics.minHeight;
-                imageBuffer.pixels = (uint8_t *)malloc(imageBuffer.width * imageBuffer.height);
+                
+                if (imageBuffer.width > 0 && imageBuffer.height > 0) {
+                    imageBuffer.pixels = (uint8_t *)calloc(imageBuffer.width * imageBuffer.height, 1);
+                    
+                    if (imageBuffer.pixels && sft_render(sft, glyph, imageBuffer) == 0) {
+                        Glyph g;
+                        g.width = imageBuffer.width;
+                        g.height = imageBuffer.height;
+                        g.advance = gmetrics.advanceWidth;
+                        g.xmin = gmetrics.leftSideBearing;
+                        g.ymin = gmetrics.yOffset;
+                        g.glyph = glyph;
 
-                if (sft_render(sft, glyph, imageBuffer) == 0) {
-                    Glyph g;
-                    g.width = imageBuffer.width;
-                    g.height = imageBuffer.height;
-                    g.advance = gmetrics.advanceWidth;
-                    g.xmin = gmetrics.leftSideBearing;
-                    g.ymin = gmetrics.yOffset;
-                    g.glyph = glyph;
+                        g.bitmap.resize(g.width * g.height);
+                        for (int i = 0; i < g.width * g.height; i++) {
+                            g.bitmap[i] = imageBuffer.pixels[i];
+                        }
 
-                    g.bitmap.resize(g.width * g.height);
-                    // Store only alpha values
-                    for (int i = 0; i < g.width * g.height; i++) {
-                        g.bitmap[i] = ((uint8_t *)imageBuffer.pixels)[i];
+                        glyphs[*characters] = g;
                     }
-
-                    glyphs[*characters] = g;
+                    free(imageBuffer.pixels);
                 }
-                free(imageBuffer.pixels);
             }
         }
         ++characters;
@@ -115,9 +119,11 @@ void OSD::drawOutline(uint8_t *image, const Glyph &g, int x, int y, int outlineS
     }
 }
 */
-int OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize, unsigned int textColor)
-{
-    // Convert textColor to BGRA components
+int OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize, unsigned int textColor) {
+    if (!image || !text || WIDTH <= 0 || HEIGHT <= 0 || outlineSize < 0) {
+        return -1;
+    }
+
     uint8_t textB = (textColor >> 0) & 0xFF;
     uint8_t textG = (textColor >> 8) & 0xFF;
     uint8_t textR = (textColor >> 16) & 0xFF;
@@ -130,33 +136,39 @@ int OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int o
         auto it = glyphs.find(*text);
         if (it != glyphs.end()) {
             const Glyph &g = it->second;
-            int x = penX + g.xmin + outlineSize;
-            int y = penY + (sft->yScale + g.ymin);
+            if (g.width > 0 && g.height > 0 && !g.bitmap.empty()) {
+                int x = penX + g.xmin + outlineSize;
+                int y = penY + (sft->yScale + g.ymin);
 
-            // Draw the outline
-            drawOutline(image, g, x, y, outlineSize, WIDTH, HEIGHT);
+                // Only draw if within bounds
+                if (x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT) {
+                    drawOutline(image, g, x, y, outlineSize, WIDTH, HEIGHT);
 
-            // Draw the actual text with the specified color
-            for (int j = 0; j < g.height; ++j) {
-                for (int i = 0; i < g.width; ++i) {
-                    int alphaIndex = j * g.width + i;
-                    uint8_t alpha = g.bitmap[alphaIndex];
-                    
-                    if (alpha > 0) {
-                        int pixelIndex = ((y + j) * WIDTH + (x + i)) * 4;
-                        image[pixelIndex] = textB;     // B
-                        image[pixelIndex + 1] = textG; // G
-                        image[pixelIndex + 2] = textR; // R
-                        image[pixelIndex + 3] = alpha; // A
+                    for (int j = 0; j < g.height && (y + j) < HEIGHT; ++j) {
+                        for (int i = 0; i < g.width && (x + i) < WIDTH; ++i) {
+                            int alphaIndex = j * g.width + i;
+                            if (alphaIndex < g.bitmap.size()) {
+                                uint8_t alpha = g.bitmap[alphaIndex];
+                                
+                                if (alpha > 0) {
+                                    int pixelIndex = ((y + j) * WIDTH + (x + i)) * 4;
+                                    if (pixelIndex + 3 < WIDTH * HEIGHT * 4) {
+                                        image[pixelIndex] = textB;
+                                        image[pixelIndex + 1] = textG;
+                                        image[pixelIndex + 2] = textR;
+                                        image[pixelIndex + 3] = alpha;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
+                penX += g.advance + (outlineSize * 2);
             }
-            penX += g.advance + (outlineSize * 2);
         }
         ++text;
     }
-
-    return 0;  // Add return value since function returns int
+    return 0;
 }
 
 int OSD::calculateTextSize(const char *text, uint16_t &width, uint16_t &height, int outlineSize)
