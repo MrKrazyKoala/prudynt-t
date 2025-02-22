@@ -67,7 +67,7 @@ private:
     int renderGlyph(const char* characters);
     void drawOutline(uint8_t* image, const Glyph& g, int x, int y, int outlineSize, int WIDTH, int HEIGHT);
     int calculateTextSize(const char* text, uint16_t& width, uint16_t& height, int outlineSize);
-    int drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize);
+    int drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize, unsigned int textColor);
     uint8_t BGRA_STROKE[4];
     uint8_t BGRA_TEXT[4];
 
