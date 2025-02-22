@@ -196,6 +196,9 @@ struct _osd {
     const char *user_text_format;
     const char *logo_path;
     unsigned int font_color;
+    unsigned int time_color;
+    unsigned int user_text_color;
+    unsigned int uptime_color;
     unsigned int font_stroke_color;
     _regions regions;
     _stream_stats stats;
