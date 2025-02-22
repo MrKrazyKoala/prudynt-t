@@ -247,8 +247,13 @@ int OSD::libschrift_init()
     return 0;
 }
 
-void OSD::set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle)
+void OSD::set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle, unsigned int textColor)  // Added textColor parameter
 {
+    // Set text color based on provided color
+    BGRA_TEXT[2] = (textColor >> 16) & 0xFF;
+    BGRA_TEXT[1] = (textColor >> 8) & 0xFF;
+    BGRA_TEXT[0] = (textColor >> 0) & 0xFF;
+    BGRA_TEXT[3] = 0;
 
     // size and stroke
     uint8_t stroke_width = osd.font_stroke;
@@ -296,8 +301,6 @@ void OSD::set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, i
         osdItem->rgnAttrData->picData.pData = osdItem->data;
         IMP_OSD_UpdateRgnAttrData(osdItem->imp_rgn, osdItem->rgnAttrData);
     }
-
-    return;
 }
 
 unsigned long getSystemUptime()
