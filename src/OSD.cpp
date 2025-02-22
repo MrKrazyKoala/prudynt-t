@@ -115,7 +115,7 @@ void OSD::drawOutline(uint8_t *image, const Glyph &g, int x, int y, int outlineS
     }
 }
 */
-void OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize, unsigned int textColor)
+int OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize, unsigned int textColor)
 {
     // Convert textColor to BGRA components
     uint8_t textB = (textColor >> 0) & 0xFF;
@@ -156,7 +156,7 @@ void OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int 
         ++text;
     }
 
-    return 0;
+    return 0;  // Add return value since function returns int
 }
 
 int OSD::calculateTextSize(const char *text, uint16_t &width, uint16_t &height, int outlineSize)
