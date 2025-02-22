@@ -23,27 +23,21 @@
 
 #include "schrift.h"
 
-int OSD::renderGlyph(const char *characters)
+int OSD::renderGlyph(const char* characters)
 {
-
-    while (*characters)
-    {
-
+    while (*characters) {
         SFT_LMetrics lmetrics;
         SFT_GMetrics gmetrics;
         SFT_Glyph glyph;
         SFT_Image imageBuffer;
 
-        if (sft_lmetrics(sft, &lmetrics) == 0 && sft_lookup(sft, *characters, &glyph) == 0)
-        {
-            if (sft_gmetrics(sft, glyph, &gmetrics) == 0)
-            {
+        if (sft_lmetrics(sft, &lmetrics) == 0 && sft_lookup(sft, *characters, &glyph) == 0) {
+            if (sft_gmetrics(sft, glyph, &gmetrics) == 0) {
                 imageBuffer.width = gmetrics.minWidth;
                 imageBuffer.height = gmetrics.minHeight;
                 imageBuffer.pixels = (uint8_t *)malloc(imageBuffer.width * imageBuffer.height);
 
-                if (sft_render(sft, glyph, imageBuffer) == 0)
-                {
+                if (sft_render(sft, glyph, imageBuffer) == 0) {
                     Glyph g;
                     g.width = imageBuffer.width;
                     g.height = imageBuffer.height;
@@ -52,21 +46,10 @@ int OSD::renderGlyph(const char *characters)
                     g.ymin = gmetrics.yOffset;
                     g.glyph = glyph;
 
-                    g.bitmap.resize(g.width * g.height * 4);
-                    for (int y = 0; y < g.height; ++y)
-                    {
-                        for (int x = 0; x < g.width; ++x)
-                        {
-                            int pixelIndex = y * g.width + x;
-                            uint8_t alpha = ((uint8_t *)imageBuffer.pixels)[pixelIndex];
-                            if (alpha > 0)
-                            {
-                                g.bitmap[pixelIndex * 4] = BGRA_TEXT[0];
-                                g.bitmap[pixelIndex * 4 + 1] = BGRA_TEXT[1];
-                                g.bitmap[pixelIndex * 4 + 2] = BGRA_TEXT[2];
-                                g.bitmap[pixelIndex * 4 + 3] = alpha;
-                            }
-                        }
+                    g.bitmap.resize(g.width * g.height);
+                    // Store only alpha values
+                    for (int i = 0; i < g.width * g.height; i++) {
+                        g.bitmap[i] = ((uint8_t *)imageBuffer.pixels)[i];
                     }
 
                     glyphs[*characters] = g;
@@ -76,7 +59,6 @@ int OSD::renderGlyph(const char *characters)
         }
         ++characters;
     }
-
     return 0;
 }
 
@@ -133,38 +115,42 @@ void OSD::drawOutline(uint8_t *image, const Glyph &g, int x, int y, int outlineS
     }
 }
 */
-int OSD::drawText(uint8_t *image, const char *text, int WIDTH, int HEIGHT, int outlineSize)
+void OSD::drawText(uint8_t* image, const char* text, int WIDTH, int HEIGHT, int outlineSize, unsigned int textColor)
 {
+    // Convert textColor to BGRA components
+    uint8_t textB = (textColor >> 0) & 0xFF;
+    uint8_t textG = (textColor >> 8) & 0xFF;
+    uint8_t textR = (textColor >> 16) & 0xFF;
+    uint8_t textA = (textColor >> 24) & 0xFF;
+
     int penX = 1;
     int penY = 1;
 
-    // Draw text and outline
-    while (*text)
-    {
+    while (*text) {
         auto it = glyphs.find(*text);
-        if (it != glyphs.end())
-        {
+        if (it != glyphs.end()) {
             const Glyph &g = it->second;
-
             int x = penX + g.xmin + outlineSize;
             int y = penY + (sft->yScale + g.ymin);
 
             // Draw the outline
             drawOutline(image, g, x, y, outlineSize, WIDTH, HEIGHT);
 
-            // Draw the actual text
-            for (int j = 0; j < g.height; ++j)
-            {
-                for (int i = 0; i < g.width; ++i)
-                {
-                    int srcIndex = (j * g.width + i) * 4;
-                    if (g.bitmap[srcIndex + 3] > 0)
-                    { // Check alpha value
-                        setPixel(image, x + i, y + j, &g.bitmap[srcIndex], WIDTH, HEIGHT);
+            // Draw the actual text with the specified color
+            for (int j = 0; j < g.height; ++j) {
+                for (int i = 0; i < g.width; ++i) {
+                    int alphaIndex = j * g.width + i;
+                    uint8_t alpha = g.bitmap[alphaIndex];
+                    
+                    if (alpha > 0) {
+                        int pixelIndex = ((y + j) * WIDTH + (x + i)) * 4;
+                        image[pixelIndex] = textB;     // B
+                        image[pixelIndex + 1] = textG; // G
+                        image[pixelIndex + 2] = textR; // R
+                        image[pixelIndex + 3] = alpha; // A
                     }
                 }
             }
-
             penX += g.advance + (outlineSize * 2);
         }
         ++text;
@@ -249,33 +235,24 @@ int OSD::libschrift_init()
 
 void OSD::set_text(OSDItem *osdItem, IMPOSDRgnAttr *rgnAttr, const char *text, int posX, int posY, int angle, unsigned int textColor)
 {
-    // Use the default font_color if specific color is not set (0)
+    // Use default color if specific color is not set
     if (textColor == 0) {
         textColor = osd.font_color;
     }
 
-    BGRA_TEXT[2] = (textColor >> 16) & 0xFF;
-    BGRA_TEXT[1] = (textColor >> 8) & 0xFF;
-    BGRA_TEXT[0] = (textColor >> 0) & 0xFF;
-    BGRA_TEXT[3] = 0;
-
-    // size and stroke
-    uint8_t stroke_width = osd.font_stroke;
     uint16_t item_width = 0;
     uint16_t item_height = 0;
+    uint8_t stroke_width = osd.font_stroke;
 
     calculateTextSize(text, item_width, item_height, stroke_width);
-
-    if (item_width % 2 != 0)
-        ++item_width;
+    if (item_width % 2 != 0) ++item_width;
 
     int item_size = item_width * item_height * 4;
-
     free(osdItem->data);
     osdItem->data = (uint8_t *)malloc(item_size);
     memset(osdItem->data, 0, item_size);
 
-    drawText(osdItem->data, text, item_width, item_height, stroke_width);
+    drawText(osdItem->data, text, item_width, item_height, stroke_width, textColor);
 
     if (angle)
     {
